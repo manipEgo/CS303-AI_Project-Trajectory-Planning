@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 from typing import Tuple
 from src import FEATURE_DIM, RADIUS, splev, N_CTPS, P, evaluate
+from model import Net
 
+PATH = './model.pth'
 
 class Agent:
 
@@ -10,6 +12,10 @@ class Agent:
         """Initialize the agent, e.g., load the classifier model. """
 
         # TODO: prepare your agent here
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = Net()
+        model.load_state_dict(torch.load(PATH, map_location=self.device))
+        self.classifier = model
 
     def get_action(self,
         target_pos: torch.Tensor,
@@ -25,9 +31,12 @@ class Agent:
         Return: Tensor of shape `(N_CTPS-2, 2)`
             the second to the second last control points
         """
-        assert len(target_pos) == len(target_features)
+        # assert len(target_pos) == len(target_features)
         
         # TODO: compute the firing speed and angle that would give the best score.
+        with torch.no_grad():
+            outputs = self.classifier(target_features)
+            _, target_classes = torch.max(outputs.data, 1)
         # Example: return a random configuration
         ctps_inter = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS-2, 2.]) + torch.tensor([1., -1.])
        
