@@ -67,32 +67,37 @@ class Agent:
         ctps_inter.requires_grad = True
         best_score = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
 
-        rands = []
-        while time.time() - start_time < RAND_TIME:
-            temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS, 2.]) + torch.tensor([0., -1.])
-            temp.requires_grad = True
-            score = self.loss(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)
-            rands.append((score, temp))
-        rands.sort(key=lambda x : x[0])
-
+        # rands = []
         cnt = 0
-        for rand in rands:
-            loss = rand[0]
-            diff = THRESHOLD
-            opt = torch.optim.Adam([rand[1]], lr = LEARNING_RATE)
-            while time.time() - start_time < TOTAL_TIME - RESERVED_TIME and diff >= THRESHOLD:
-                opt.zero_grad()
-                loss.backward()
-                opt.step()
-                score = loss
-                loss = self.loss(compute_traj(rand[1]), target_pos, class_scores[target_classes], RADIUS)
-                diff = abs(loss - score)
-            if loss < best_score:
-                ctps_inter = rand[1]
-                best_score = loss
+        while time.time() - start_time < TOTAL_TIME - RESERVED_TIME:
             cnt += 1
-            if time.time() - start_time > TOTAL_TIME - RESERVED_TIME:
-                break
+            temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS, 2.]) + torch.tensor([0., -1.])
+            # temp.requires_grad = True
+            score = evaluate(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)
+            if score > best_score:
+                best_score = score
+                ctps_inter = temp
+            # rands.append((score, temp))
+        # rands.sort(key=lambda x : x[0])
+
+        # cnt = 0
+        # for rand in rands:
+        #     loss = rand[0]
+        #     diff = THRESHOLD
+        #     opt = torch.optim.Adam([rand[1]], lr = LEARNING_RATE)
+        #     while time.time() - start_time < TOTAL_TIME - RESERVED_TIME and diff >= THRESHOLD:
+        #         opt.zero_grad()
+        #         loss.backward()
+        #         opt.step()
+        #         score = loss
+        #         loss = self.loss(compute_traj(rand[1]), target_pos, class_scores[target_classes], RADIUS)
+        #         diff = abs(loss - score)
+        #     if loss < best_score:
+        #         ctps_inter = rand[1]
+        #         best_score = loss
+        #     cnt += 1
+        #     if time.time() - start_time > TOTAL_TIME - RESERVED_TIME:
+        #         break
 
         if verbose:
             return ctps_inter, cnt
