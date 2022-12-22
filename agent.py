@@ -39,6 +39,7 @@ class Agent:
         target_pos: torch.Tensor,
         target_features: torch.Tensor,
         class_scores: torch.Tensor,
+        verbose: bool=False,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Compute the parameters required to fire a projectile. 
         
@@ -71,12 +72,22 @@ class Agent:
                 best_score = score
 
         # grad desc for the rest time
+        if verbose:
+            opt = torch.optim.Adam([ctps_inter], lr = LEARNING_RATE)
+            losses = []
+            while time.time() - start_time < 0.3 - RESERVED_TIME:
+                loss = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
+                opt.zero_grad()
+                loss.backward()
+                opt.step()
+                losses.append(loss.data)
+            return ctps_inter, losses
+
         opt = torch.optim.Adam([ctps_inter], lr = LEARNING_RATE)
         while time.time() - start_time < 0.3 - RESERVED_TIME:
             loss = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
             opt.zero_grad()
             loss.backward()
             opt.step()
-
         return ctps_inter
 
