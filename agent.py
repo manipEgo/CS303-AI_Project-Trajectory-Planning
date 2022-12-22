@@ -8,7 +8,7 @@ from model import Net
 
 PATH = './model.pth'
 TOTAL_TIME = 0.3
-RAND_TIME = 0.6 * TOTAL_TIME
+RAND_TIME = 0.7 * TOTAL_TIME
 RESERVED_TIME = 0.02
 LEARNING_RATE = 0.5
 THRESHOLD = 1
@@ -27,15 +27,16 @@ class Agent:
         self.relu = nn.ReLU()
 
     def loss(self,
-        traj: torch.Tensor, 
+        ctps_inter: torch.Tensor, 
         target_pos: torch.Tensor, 
         target_scores: torch.Tensor,
         radius: float,
-        ) -> torch.Tensor:
+    ) -> torch.Tensor:
+        traj = compute_traj(ctps_inter)
         cdist = torch.cdist(target_pos, traj)
         d = cdist.min(-1).values - radius
-        d = self.relu(d)
-        loss = torch.sum(d * target_scores, dim=-1)
+        loss = torch.sigmoid(self.relu(d)) * 2
+        loss = torch.sum(loss * target_scores, dim=-1)
         return loss
 
     def get_action(self,
@@ -65,28 +66,29 @@ class Agent:
         # rand best for some time
         ctps_inter = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS, 2.]) + torch.tensor([0., -1.])
         ctps_inter.requires_grad = True
-        best_score = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
+        best_score = self.loss(ctps_inter, target_pos, class_scores[target_classes], RADIUS)
 
         rands = []
         while time.time() - start_time < RAND_TIME:
             temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS, 2.]) + torch.tensor([0., -1.])
             temp.requires_grad = True
-            score = evaluate(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)
+            score = self.loss(temp, target_pos, class_scores[target_classes], RADIUS)
             rands.append((score, temp))
-        rands.sort(key=lambda x : -x[0])
+        rands.sort(key=lambda x : x[0])
 
         cnt = 0
         for rand in rands:
+            loss = rand[0]
             diff = THRESHOLD
             opt = torch.optim.Adam([rand[1]], lr = LEARNING_RATE)
             while time.time() - start_time < TOTAL_TIME - RESERVED_TIME and diff >= THRESHOLD:
-                loss = self.loss(compute_traj(rand[1]), target_pos, class_scores[target_classes], RADIUS)
                 opt.zero_grad()
                 loss.backward()
                 opt.step()
                 score = loss
+                loss = self.loss(rand[1], target_pos, class_scores[target_classes], RADIUS)
                 diff = abs(loss - score)
-            if evaluate(compute_traj(rand[1]), target_pos, class_scores[target_classes], RADIUS) > best_score:
+            if loss < best_score:
                 ctps_inter = rand[1]
                 best_score = loss
             cnt += 1
