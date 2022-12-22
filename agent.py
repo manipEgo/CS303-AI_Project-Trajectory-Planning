@@ -7,6 +7,7 @@ from src import FEATURE_DIM, RADIUS, splev, N_CTPS, P, evaluate, compute_traj
 from model import Net
 
 PATH = './model.pth'
+RAND_TIME = 0.15
 RESERVED_TIME = 0.02
 LEARNING_RATE = 0.5
 
@@ -63,7 +64,7 @@ class Agent:
         ctps_inter = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS-2, 2.]) + torch.tensor([1., -1.])
         ctps_inter.requires_grad = True
         best_score = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
-        while time.time() - start_time < 0.1:
+        while time.time() - start_time < RAND_TIME:
             temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS-2, 2.]) + torch.tensor([1., -1.])
             temp.requires_grad = True
             score = self.loss(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)
