@@ -68,7 +68,7 @@ class Agent:
             temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS-2, 2.]) + torch.tensor([1., -1.])
             temp.requires_grad = True
             score = self.loss(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)
-            if score > best_score:
+            if score < best_score:
                 ctps_inter = temp
                 best_score = score
 
