@@ -71,10 +71,12 @@ class Agent:
                 best_score = score
 
         # grad desc for the rest time
+        opt = torch.optim.Adam([ctps_inter], lr = LEARNING_RATE)
         while time.time() - start_time < 0.3 - RESERVED_TIME:
             loss = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
+            opt.zero_grad()
             loss.backward()
-            ctps_inter.data = ctps_inter.data + LEARNING_RATE * ctps_inter.grad / torch.norm(ctps_inter.grad)
+            opt.step()
 
         return ctps_inter
 
