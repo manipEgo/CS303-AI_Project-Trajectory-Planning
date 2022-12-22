@@ -8,6 +8,7 @@ from model import Net
 
 PATH = './model.pth'
 RESERVED_TIME = 0.02
+LEARNING_RATE = 0.5
 
 class Agent:
 
@@ -20,6 +21,19 @@ class Agent:
         print(os.getcwd())
         model.load_state_dict(torch.load(PATH, map_location=self.device))
         self.classifier = model
+        self.relu = nn.ReLU()
+
+    def loss(self,
+        traj: torch.Tensor, 
+        target_pos: torch.Tensor, 
+        target_scores: torch.Tensor,
+        radius: float,
+        ) -> torch.Tensor:
+        cdist = torch.cdist(target_pos, traj)
+        d = cdist.min(-1).values - radius
+        d = -self.relu(d)
+        loss = torch.sum(d * target_scores, dim=-1)
+        return loss
 
     def get_action(self,
         target_pos: torch.Tensor,
@@ -45,13 +59,20 @@ class Agent:
 
         # Example: return a random configuration
         ctps_inter = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS-2, 2.]) + torch.tensor([1., -1.])
-        best_score = evaluate(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
-        while time.time() - start_time < 0.3 - RESERVED_TIME:
+        ctps_inter.requires_grad = True
+        best_score = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
+        while time.time() - start_time < 0.1:
             temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS-2, 2.]) + torch.tensor([1., -1.])
-            score = evaluate(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)
+            temp.requires_grad = True
+            score = self.loss(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)
             if score > best_score:
                 ctps_inter = temp
                 best_score = score
+
+        while time.time() - start_time < 0.3 - RESERVED_TIME:
+            loss = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
+            loss.backward()
+            ctps_inter.data = ctps_inter.data + LEARNING_RATE * ctps_inter.grad / torch.norm(ctps_inter.grad)
 
         return ctps_inter
 
