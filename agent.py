@@ -51,13 +51,14 @@ class Agent:
         """
         # assert len(target_pos) == len(target_features)
         
-        # TODO: compute the firing speed and angle that would give the best score.
         start_time = time.time()
+
+        # predict classes
         with torch.no_grad():
             outputs = self.classifier(target_features)
             _, target_classes = torch.max(outputs.data, 1)
 
-        # Example: return a random configuration
+        # rand best for some time
         ctps_inter = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS-2, 2.]) + torch.tensor([1., -1.])
         ctps_inter.requires_grad = True
         best_score = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
@@ -69,6 +70,7 @@ class Agent:
                 ctps_inter = temp
                 best_score = score
 
+        # grad desc for the rest time
         while time.time() - start_time < 0.3 - RESERVED_TIME:
             loss = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
             loss.backward()
