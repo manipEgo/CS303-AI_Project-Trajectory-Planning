@@ -7,9 +7,10 @@ from src import FEATURE_DIM, RADIUS, splev, N_CTPS, P, evaluate, compute_traj
 from model import Net
 
 PATH = './model.pth'
-RAND_TIME = 0.15
+TOTAL_TIME = 0.3
 RESERVED_TIME = 0.02
 LEARNING_RATE = 0.5
+THRESHOLD = 0.0001
 
 class Agent:
 
@@ -63,32 +64,45 @@ class Agent:
         # rand best for some time
         ctps_inter = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS-2, 2.]) + torch.tensor([1., -1.])
         ctps_inter.requires_grad = True
+        opt = torch.optim.Adam([ctps_inter], lr = LEARNING_RATE)
         best_score = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
-        while time.time() - start_time < RAND_TIME:
+        cnt = 0
+
+        while time.time() - start_time < TOTAL_TIME - RESERVED_TIME:
             temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS-2, 2.]) + torch.tensor([1., -1.])
             temp.requires_grad = True
             score = self.loss(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)
-            if score < best_score:
-                ctps_inter = temp
-                best_score = score
-
-        # grad desc for the rest time
-        if verbose:
-            opt = torch.optim.Adam([ctps_inter], lr = LEARNING_RATE)
-            losses = []
-            while time.time() - start_time < 0.3 - RESERVED_TIME:
-                loss = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
+            loss = score
+            diff = THRESHOLD
+            while time.time() - start_time < TOTAL_TIME - RESERVED_TIME and diff >= THRESHOLD:
                 opt.zero_grad()
                 loss.backward()
                 opt.step()
-                losses.append(loss.data)
-            return ctps_inter, losses
+                score = loss
+                loss = self.loss(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)
+                diff = abs(loss - score)
+            if loss < best_score:
+                ctps_inter = temp
+                best_score = loss
+            cnt += 1
 
-        opt = torch.optim.Adam([ctps_inter], lr = LEARNING_RATE)
-        while time.time() - start_time < 0.3 - RESERVED_TIME:
-            loss = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
+        # # grad desc for the rest time
+        # if verbose:
+        #     losses = []
+        #     while time.time() - start_time < 0.3 - RESERVED_TIME:
+        #         loss = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
+        #         opt.zero_grad()
+        #         loss.backward()
+        #         opt.step()
+        #         losses.append(loss.data)
+        #     return ctps_inter, losses
+
+        # while time.time() - start_time < 0.3 - RESERVED_TIME:
+        #     loss = self.loss(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
+        #     opt.zero_grad()
+        #     loss.backward()
+        #     opt.step()
+        if verbose:
+            return ctps_inter, cnt
         return ctps_inter
 

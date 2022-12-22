@@ -29,8 +29,10 @@ if __name__ == "__main__":
         target_pos, target_features, target_cls, class_scores = generate_game(n_targets, N_CTPS, feature, label)
         if VERBOSE:
             enter_time = time.time()
-            ctps_inter, losses = agent.get_action(target_pos, target_features, class_scores, VERBOSE)
-            p_bar.set_postfix_str("final loss: " + str(round(float(losses[len(losses) - 1]), 4)) + " | time: " + str(round(time.time() - enter_time, 2)) + "s")
+            # ctps_inter, losses = agent.get_action(target_pos, target_features, class_scores, VERBOSE)
+            # p_bar.set_postfix_str("final loss: " + str(round(float(losses[len(losses) - 1]), 4)) + " | time: " + str(round(time.time() - enter_time, 2)) + "s")
+            ctps_inter, cnt = agent.get_action(target_pos, target_features, class_scores, VERBOSE)
+            p_bar.set_postfix_str("count: " + str(cnt) + " | time: " + str(round(time.time() - enter_time, 2)) + "s")
         else:
             ctps_inter = agent.get_action(target_pos, target_features, class_scores)
         score = evaluate(compute_traj(ctps_inter), target_pos, class_scores[target_cls], RADIUS)
