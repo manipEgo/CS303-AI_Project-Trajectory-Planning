@@ -8,7 +8,7 @@ from model import Net
 
 PATH = './model.pth'
 TOTAL_TIME = 0.3
-RAND_TIME = 0.7 * TOTAL_TIME
+RAND_TIME = 0.5 * TOTAL_TIME
 RESERVED_TIME = 0.02
 LEARNING_RATE = 0.5
 THRESHOLD = 1
@@ -67,20 +67,25 @@ class Agent:
         ctps_inter = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS, 2.]) + torch.tensor([0., -1.])
         ctps_inter.requires_grad = True
         best_score = self.loss(ctps_inter, target_pos, class_scores[target_classes], RADIUS)
+        best_eva = evaluate(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
 
         rands = []
         while time.time() - start_time < RAND_TIME:
             temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS, 2.]) + torch.tensor([0., -1.])
             temp.requires_grad = True
             score = self.loss(temp, target_pos, class_scores[target_classes], RADIUS)
+            eva = evaluate(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)
             rands.append((score, temp))
+            if eva > best_eva:
+                best_eva = eva
+                ctps_inter = temp
         rands.sort(key=lambda x : x[0])
 
         cnt = 0
         for rand in rands:
             loss = rand[0]
             diff = THRESHOLD
-            opt = torch.optim.Adam([rand[1]], lr = LEARNING_RATE)
+            opt = torch.optim.NAdam([rand[1]], lr=LEARNING_RATE)
             while time.time() - start_time < TOTAL_TIME - RESERVED_TIME and diff >= THRESHOLD:
                 opt.zero_grad()
                 loss.backward()
@@ -88,9 +93,10 @@ class Agent:
                 score = loss
                 loss = self.loss(rand[1], target_pos, class_scores[target_classes], RADIUS)
                 diff = abs(loss - score)
-            if loss < best_score:
+            eva = evaluate(compute_traj(rand[1]), target_pos, class_scores[target_classes], RADIUS)
+            if eva > best_eva:
                 ctps_inter = rand[1]
-                best_score = loss
+                best_eva = eva
             cnt += 1
             if time.time() - start_time > TOTAL_TIME - RESERVED_TIME:
                 break
