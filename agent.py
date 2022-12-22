@@ -31,7 +31,7 @@ class Agent:
         ) -> torch.Tensor:
         cdist = torch.cdist(target_pos, traj)
         d = cdist.min(-1).values - radius
-        d = -self.relu(d)
+        d = self.relu(d)
         loss = torch.sum(d * target_scores, dim=-1)
         return loss
 
