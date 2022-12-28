@@ -11,7 +11,7 @@ TOTAL_TIME = 0.3
 RESERVED_TIME = 0.012
 LEARNING_RATE = 2e-3
 
-RAND_TIME = 0.2 * TOTAL_TIME
+RAND_TIME = 0.6 * TOTAL_TIME
 RAND_NUM = 128
 
 THRESHOLD = 5
@@ -47,7 +47,7 @@ class Agent:
         target_features: torch.Tensor,
         class_scores: torch.Tensor,
         verbose: bool=False,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ):
         """Compute the parameters required to fire a projectile. 
         
         Args:
@@ -68,18 +68,18 @@ class Agent:
 
         # rand best for some time
         ctps_inters = []
-        cnt = 0
-        while time.time() - start_time < RAND_TIME or cnt < RAND_NUM:
+        tot = 0
+        while time.time() - start_time < RAND_TIME or tot < RAND_NUM:
             temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS * 3, 6.]) + torch.tensor([-N_CTPS, -3.])
             temp.requires_grad = True
             ctps_inters.append((temp, evaluate(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)))
-            cnt += 1
+            tot += 1
         ctps_inters.sort(key=lambda x:-x[1])
         result = ctps_inters[0][0]
         best_eva = ctps_inters[0][1]
 
         cnt = 0
-        while time.time() - start_time < TOTAL_TIME - RESERVED_TIME and cnt < len(ctps_inters):
+        while time.time() - start_time < TOTAL_TIME - RESERVED_TIME and cnt < tot:
             temp = ctps_inters[cnt][0]
             score = self.loss(temp, target_pos, class_scores[target_classes], RADIUS)
             opt = torch.optim.NAdam([temp], lr=LEARNING_RATE)
@@ -104,6 +104,6 @@ class Agent:
             temp_result.append(torch.tensor([7., 1.]))
 
         if verbose:
-            return result, cnt
+            return result, cnt, tot
         return result
 
