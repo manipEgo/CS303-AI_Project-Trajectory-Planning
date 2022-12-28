@@ -79,7 +79,7 @@ class Agent:
         best_eva = ctps_inters[0][1]
 
         cnt = 0
-        while time.time() - start_time < TOTAL_TIME - RESERVED_TIME:
+        while time.time() - start_time < TOTAL_TIME - RESERVED_TIME and cnt < len(ctps_inters):
             temp = ctps_inters[cnt][0]
             score = self.loss(temp, target_pos, class_scores[target_classes], RADIUS)
             opt = torch.optim.NAdam([temp], lr=LEARNING_RATE)
