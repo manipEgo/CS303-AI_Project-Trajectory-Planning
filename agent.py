@@ -8,9 +8,8 @@ from model import Net
 
 PATH = './model.pth'
 TOTAL_TIME = 0.3
-RAND_TIME = 0.5 * TOTAL_TIME
 RESERVED_TIME = 0.02
-LEARNING_RATE = 0.35
+LEARNING_RATE = 0.01
 THRESHOLD = 5
 
 class Agent:
@@ -64,15 +63,14 @@ class Agent:
             _, target_classes = torch.max(outputs.data, 1)
 
         # rand best for some time
-        ctps_inter = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS, 2.]) + torch.tensor([0., -1.])
+        ctps_inter = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS * 3, 6.]) + torch.tensor([-N_CTPS, -3.])
         ctps_inter.requires_grad = True
-        best_score = self.loss(ctps_inter, target_pos, class_scores[target_classes], RADIUS)
         best_eva = evaluate(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
 
         cnt = 0
         while time.time() - start_time < TOTAL_TIME - RESERVED_TIME:
             cnt += 1
-            temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS, 2.]) + torch.tensor([0., -1.])
+            temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS * 3, 6.]) + torch.tensor([-N_CTPS, -3.])
             temp.requires_grad = True
             score = self.loss(temp, target_pos, class_scores[target_classes], RADIUS)
             opt = torch.optim.NAdam([temp], lr=LEARNING_RATE)
@@ -88,6 +86,12 @@ class Agent:
             if eva > best_eva:
                 best_eva = eva
                 ctps_inter = temp
+
+        if best_eva < 0.0:
+            temp_result = []
+            temp_result.append(torch.tensor([-2., 1.]))
+            temp_result.append(torch.tensor([2.5, 2.]))
+            temp_result.append(torch.tensor([7., 1.]))
 
         if verbose:
             return ctps_inter, cnt
