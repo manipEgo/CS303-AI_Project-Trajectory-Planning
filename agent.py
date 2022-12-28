@@ -8,8 +8,12 @@ from model import Net
 
 PATH = './model.pth'
 TOTAL_TIME = 0.3
-RESERVED_TIME = 0.02
-LEARNING_RATE = 0.01
+RESERVED_TIME = 0.012
+LEARNING_RATE = 2e-3
+
+RAND_TIME = 0.2 * TOTAL_TIME
+RAND_NUM = 128
+
 THRESHOLD = 5
 
 class Agent:
@@ -63,15 +67,20 @@ class Agent:
             _, target_classes = torch.max(outputs.data, 1)
 
         # rand best for some time
-        ctps_inter = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS * 3, 6.]) + torch.tensor([-N_CTPS, -3.])
-        ctps_inter.requires_grad = True
-        best_eva = evaluate(compute_traj(ctps_inter), target_pos, class_scores[target_classes], RADIUS)
+        ctps_inters = []
+        cnt = 0
+        while time.time() - start_time < RAND_TIME or cnt < RAND_NUM:
+            temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS * 3, 6.]) + torch.tensor([-N_CTPS, -3.])
+            temp.requires_grad = True
+            ctps_inters.append((temp, evaluate(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)))
+            cnt += 1
+        ctps_inters.sort(key=lambda x:-x[1])
+        result = ctps_inters[0][0]
+        best_eva = ctps_inters[0][1]
 
         cnt = 0
         while time.time() - start_time < TOTAL_TIME - RESERVED_TIME:
-            cnt += 1
-            temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS * 3, 6.]) + torch.tensor([-N_CTPS, -3.])
-            temp.requires_grad = True
+            temp = ctps_inters[cnt][0]
             score = self.loss(temp, target_pos, class_scores[target_classes], RADIUS)
             opt = torch.optim.NAdam([temp], lr=LEARNING_RATE)
             diff = THRESHOLD
@@ -85,7 +94,8 @@ class Agent:
             eva = evaluate(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)
             if eva > best_eva:
                 best_eva = eva
-                ctps_inter = temp
+                result = temp
+            cnt += 1
 
         if best_eva < 0.0:
             temp_result = []
@@ -94,6 +104,6 @@ class Agent:
             temp_result.append(torch.tensor([7., 1.]))
 
         if verbose:
-            return ctps_inter, cnt
-        return ctps_inter
+            return result, cnt
+        return result
 
