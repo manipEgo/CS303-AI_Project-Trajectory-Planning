@@ -5,7 +5,7 @@ from agent import Agent
 from tqdm import tqdm # a convenient progress bar
 import torch
 
-N_EVALS = 500
+N_EVALS = 2500
 VERBOSE = True
 
 if __name__ == "__main__":
