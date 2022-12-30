@@ -6,7 +6,7 @@ from typing import Tuple
 from src import FEATURE_DIM, RADIUS, splev, N_CTPS, P, evaluate, compute_traj
 from model import Net
 
-PATH = './model.pth'
+PATH = os.path.join(os.path.dirname(__file__), 'model.pth')
 TOTAL_TIME = 0.3
 RESERVED_TIME = 0.012
 LEARNING_RATE = 2e-3
