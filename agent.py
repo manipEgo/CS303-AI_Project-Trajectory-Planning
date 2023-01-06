@@ -2,6 +2,7 @@ import os
 import time
 import torch
 import torch.nn as nn
+from functorch import vmap
 from typing import Tuple
 from src import FEATURE_DIM, RADIUS, splev, N_CTPS, P, evaluate, compute_traj
 from model import Net
@@ -11,7 +12,7 @@ TOTAL_TIME = 0.3
 RESERVED_TIME = 0.012
 LEARNING_RATE = 2e-3
 
-RAND_TIME = 0.35 * TOTAL_TIME
+RAND_TIME = 0.2 * TOTAL_TIME
 RAND_NUM = 128
 
 THRESHOLD = 5
@@ -72,15 +73,22 @@ class Agent:
         while time.time() - start_time < RAND_TIME or tot < RAND_NUM:
             temp = torch.rand((N_CTPS-2, 2)) * torch.tensor([N_CTPS * 3, 6.]) + torch.tensor([-N_CTPS, -3.])
             temp.requires_grad = True
-            ctps_inters.append((temp, evaluate(compute_traj(temp), target_pos, class_scores[target_classes], RADIUS)))
+            ctps_inters.append(temp)
             tot += 1
-        ctps_inters.sort(key=lambda x:-x[1])
-        result = ctps_inters[0][0]
-        best_eva = ctps_inters[0][1]
+        ctps_inters = torch.stack(ctps_inters)
+        batch_compute_traj = vmap(compute_traj, in_dims=0, out_dims=0)
+        batch_evaluate = vmap(evaluate, in_dims=(0, None, None, None), out_dims=0)
+        scores = batch_evaluate(batch_compute_traj(ctps_inters), target_pos, class_scores[target_classes], RADIUS)
+        idxs = torch.argsort(scores, stable=True, descending=True)
+        scores = scores[idxs]
+        ctps_inters = ctps_inters[idxs]
+        result = ctps_inters[0]
+        best_eva = scores[0]
 
         cnt = 0
         while time.time() - start_time < TOTAL_TIME - RESERVED_TIME and cnt < tot:
-            temp = ctps_inters[cnt][0]
+            temp = ctps_inters[cnt].clone().detach().requires_grad_(True)
+            temp.requires_grad = True
             score = self.loss(temp, target_pos, class_scores[target_classes], RADIUS)
             opt = torch.optim.NAdam([temp], lr=LEARNING_RATE)
             diff = THRESHOLD

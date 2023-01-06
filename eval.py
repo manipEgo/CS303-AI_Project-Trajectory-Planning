@@ -5,7 +5,7 @@ from agent import Agent
 from tqdm import tqdm # a convenient progress bar
 import torch
 
-N_EVALS = 2500
+N_EVALS = 500
 VERBOSE = True
 
 if __name__ == "__main__":
@@ -22,6 +22,7 @@ if __name__ == "__main__":
     feature = data["feature"]
 
     scores = []
+    time_outed = 0
     p_bar = tqdm(range(N_EVALS))
     for game in p_bar:
 
@@ -32,11 +33,17 @@ if __name__ == "__main__":
             # ctps_inter, losses = agent.get_action(target_pos, target_features, class_scores, VERBOSE)
             # p_bar.set_postfix_str("final loss: " + str(round(float(losses[len(losses) - 1]), 4)) + " | time: " + str(round(time.time() - enter_time, 2)) + "s")
             ctps_inter, cnt, tot = agent.get_action(target_pos, target_features, class_scores, VERBOSE)
-            p_bar.set_postfix_str("count: " + str(cnt) + "/" + str(tot) + " | time: " + str(round(time.time() - enter_time, 4)) + "s")
+            time_cost = time.time() - enter_time
+            p_bar.set_postfix_str("count: " + str(cnt) + "/" + str(tot) + " | time: " + str(round(time_cost, 4)) + "s")
+            score = evaluate(compute_traj(ctps_inter), target_pos, class_scores[target_cls], RADIUS) * max(0.4 - max(time_cost, 0.3), 0.0) * 10.0
+            if time_cost > 0.3:
+                time_outed += 1
         else:
             ctps_inter = agent.get_action(target_pos, target_features, class_scores)
-        score = evaluate(compute_traj(ctps_inter), target_pos, class_scores[target_cls], RADIUS)
+            score = evaluate(compute_traj(ctps_inter), target_pos, class_scores[target_cls], RADIUS)
         scores.append(score)
     
     print(torch.stack(scores).float().mean())
+    if VERBOSE:
+        print("time outed: " + str(time_outed))
     
